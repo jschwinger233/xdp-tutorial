@@ -1,3 +1,4 @@
+import os
 import argparse
 
 import bcc
@@ -12,6 +13,7 @@ parser.add_argument(
 parser.add_argument(
     "--progsec",
     action="store",
+    required=True,
     help="load program in [section]",
 )
 parser.add_argument("-S", "--skb-mode", action="store_true")
@@ -19,6 +21,7 @@ parser.add_argument("-N", "--native-mode", action="store_true")
 parser.add_argument("-O", "--offload-mode", action="store_true")
 parser.add_argument("-F", "--force", action="store_true")
 parser.add_argument("-U", "--unload", action="store_true")
+parser.add_argument("-T", "--trace", action="store_true")
 parser.add_argument("filename", help="load program from [filename]")
 args = parser.parse_args()
 
@@ -35,7 +38,12 @@ if args.force:
 bpf = bcc.BPF(src_file=args.filename)
 
 if args.unload:
-    bpf.remove_xdp(args.dev)
+    bpf.remove_xdp(args.dev, xdp_flags)
+    os._exit(0)
+
+if args.trace:
+    while True:
+        bpf.trace_print()
 else:
     bpf.attach_xdp(
         args.dev,
