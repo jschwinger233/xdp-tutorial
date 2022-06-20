@@ -1,13 +1,12 @@
 #include <uapi/linux/bpf.h>
 
 #define MAX_BUF_SIZE 450
+#define min(a, b) (a) < (b) ? (a) : (b)
 
-BPF_RINGBUF_OUTPUT(buffer, 1<<4);
+BPF_PERF_OUTPUT(buffer);
 
 struct packet {
-    u8 content[MAX_BUF_SIZE];
-    u16 len;
-    bool truncate;
+    u32 len;
 };
 
 int xdp_sample(struct xdp_md *ctx) {
@@ -20,21 +19,8 @@ int xdp_sample(struct xdp_md *ctx) {
     struct packet pkt;
     __builtin_memset(&pkt, 0, sizeof(pkt));
 
-    pkt.len = data_end - data;
-    if (pkt.len < 0) {
-        pkt.len = 0;
-    }
-    if (pkt.len > MAX_BUF_SIZE) {
-        pkt.len = MAX_BUF_SIZE;
-        pkt.truncate = true;
-    }
-
-    if (pkt.len <= MAX_BUF_SIZE && pkt.len > 0 && data + pkt.len <= data_end) {
-        bpf_probe_read_kernel(&pkt.content, pkt.len, data);
-        if (buffer.ringbuf_output(&pkt, sizeof(pkt), BPF_RB_FORCE_WAKEUP) < 0) {
-            bpf_trace_printk("failed to output ringbuf\n");
-        }
-    }
+    pkt.len = min(data_end - data, MAX_BUF_SIZE);
+    buffer.perf_submit_skb(ctx, pkt.len, &pkt, sizeof(pkt));
 
     return XDP_PASS;
 }

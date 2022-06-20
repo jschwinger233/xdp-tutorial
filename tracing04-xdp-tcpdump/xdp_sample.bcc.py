@@ -38,17 +38,17 @@ else:
 
     class Packet(ctypes.Structure):
         _fields_ = [
+            ("len", ctypes.c_uint32),
             ("content", ctypes.c_uint8 * 450),
-            ("len", ctypes.c_uint16),
-            ("truncate", ctypes.c_bool),
         ]
 
     def callback(ctx, data, size):
+        print('got')
         event = ctypes.cast(data, ctypes.POINTER(Packet)).contents
         packet = l2.Ether(event.content[: event.len])
         wrpcap(args.output, packet, append=True)
 
-    bpf["buffer"].open_ring_buffer(callback)
+    bpf["buffer"].open_perf_buffer(callback)
 
     while True:
-        bpf.ring_buffer_poll()
+        bpf.perf_buffer_poll()
